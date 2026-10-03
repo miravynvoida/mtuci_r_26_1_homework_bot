@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f7fb">
+  <title>Электронный дневник v20</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/static/app.css?v=21">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div><div class="eyebrow">Электронный дневник</div><h1 id="pageTitle">Главная</h1></div>
+    <button id="refreshBtn" class="icon-btn" aria-label="Обновить">↻</button>
+  </header>
+  <main id="content"></main>
+  <nav id="bottomNav" class="bottom-nav">
+    <button data-page="home"><span class="nav-icon" style="--icon:url('/static/icons/glavnayaD.png')" aria-hidden="true"></span><span>Главная</span></button>
+    <button data-page="schedule"><span class="nav-icon" style="--icon:url('/static/icons/raspisanieD.png')" aria-hidden="true"></span><span>Расписание</span></button>
+    <button data-page="homework"><span class="nav-icon" style="--icon:url('/static/icons/dzD.png')" aria-hidden="true"></span><span>ДЗ</span></button>
+    <button data-page="grades"><span class="nav-icon" style="--icon:url('/static/icons/ocenkiD.png')" aria-hidden="true"></span><span>Оценки</span></button>
+    <button data-page="more"><span class="nav-icon" style="--icon:url('/static/icons/esheD.png')" aria-hidden="true"></span><span>Ещё</span></button>
+    <button id="adminNavBtn" data-page="admin" hidden><span class="nav-icon" style="--icon:url('/static/icons/adminpanelD.png')" aria-hidden="true"></span><span>Админ</span></button>
+  </nav>
+</div>
+<div id="toast"></div><div id="modalRoot"></div>
+<script src="/static/app.js?v=21"></script>
+</body>
+</html>
