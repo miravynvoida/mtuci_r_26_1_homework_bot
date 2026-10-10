@@ -3,6 +3,7 @@ import calendar
 import logging
 import os
 import re
+import json
 import sqlite3
 from datetime import datetime, date, time, timedelta
 from pathlib import Path
@@ -221,6 +222,7 @@ class ScheduleCreateCustomTime(StatesGroup): value=State()
 class ScheduleEditCustomTime(StatesGroup): value=State()
 class ScheduleAddCustomTime(StatesGroup): value=State()
 class ScheduleDateInput(StatesGroup): value=State()
+class ScheduleJSONImport(StatesGroup): file=State()
 
 @router.message(Command("cancel"))
 async def cancel_command(m:Message,state:FSMContext):
@@ -628,7 +630,7 @@ async def admin_only(c):
     return True
 
 def admin_kb():
-    rows = [[b("📊 Обзор и статистика","adm:dashboard")],[b("📝 Новое ДЗ","adm:newhw")],[b("🛠 Управление ДЗ","adm:hw")],[b("📚 Управление учебниками","adm:books")],[b("📎 Доп. материалы","adm:materials")],[b("📅 Управление расписанием","adm:schedule")],[b("👥 Управление студентами","adm:students")],[b("⭐ Управление VIP","adm:vip")],[b("📖 Дисциплины","adm:disc")],[b("📢 Уведомление всем","adm:broadcast")]]
+    rows = [[b("📊 Обзор и статистика","adm:dashboard")],[b("📝 Новое ДЗ","adm:newhw")],[b("🛠 Управление ДЗ","adm:hw")],[b("📚 Управление учебниками","adm:books")],[b("📎 Доп. материалы","adm:materials")],[b("📅 Управление расписанием","adm:schedule")],[b("📥 Импорт расписания JSON","adm:schedule_json")],[b("👥 Управление студентами","adm:students")],[b("⭐ Управление VIP","adm:vip")],[b("📖 Дисциплины","adm:disc")],[b("📢 Уведомление всем","adm:broadcast")]]
     if MINI_APP_URL:
         rows.append([InlineKeyboardButton(text="🛠 Админ-панель Mini App", web_app=WebAppInfo(url=MINI_APP_URL + ("&" if "?" in MINI_APP_URL else "?") + "admin=1") )])
     rows.append([b("🏠 Главное меню","menu:home")])
@@ -648,6 +650,7 @@ async def admin_router(c:CallbackQuery,state:FSMContext):
     if act=='adm:books': return await admin_books(c)
     if act=='adm:materials': return await admin_materials(c)
     if act=='adm:schedule': return await admin_schedule(c)
+    if act=='adm:schedule_json': return await schedule_json_start(c,state)
     if act=='adm:students': return await admin_students(c)
     if act=='adm:vip': return await admin_vip(c)
     if act=='adm:disc': return await admin_disc(c)
@@ -1104,6 +1107,141 @@ async def abookdel(c):
 @router.callback_query(F.data.startswith("abookdelok:"))
 async def abookdelok(c):
     _,bid,did=c.data.split(':');cc=db();cc.execute("DELETE FROM textbooks WHERE id=?",(bid,));cc.commit();cc.close();await c.answer("Удалено");await abooksd(c)
+
+# Import schedule from a JSON file generated externally (no AI/API integration)
+async def schedule_json_start(c: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await state.set_state(ScheduleJSONImport.file)
+    await c.answer()
+    await edit_or_answer(c,
+        "📥 <b>Импорт расписания из JSON</b>\n\n"
+        "Пришли файл <code>.json</code>, подготовленный по шаблону.\n"
+        "Типы занятий: <code>ПР</code>, <code>ЛЕК</code>, <code>ЛАБ</code>.\n"
+        "Перед записью бот покажет предпросмотр. Занятия на даты из файла будут заменены целиком.\n\n"
+        "Для отмены используй /cancel.")
+
+@router.message(ScheduleJSONImport.file, F.document)
+async def schedule_json_receive(m: Message, state: FSMContext):
+    if not is_admin(m.from_user.id):
+        await state.clear(); return await m.answer("⛔ Доступ запрещён.")
+    doc = m.document
+    if not (doc.file_name or '').lower().endswith('.json'):
+        return await m.answer("Пришли именно файл с расширением .json.")
+    if doc.file_size and doc.file_size > 2_000_000:
+        return await m.answer("Файл слишком большой. JSON расписания должен быть меньше 2 МБ.")
+    try:
+        f = await m.bot.get_file(doc.file_id)
+        import io
+        buf = io.BytesIO()
+        await m.bot.download_file(f.file_path, destination=buf)
+        raw = json.loads(buf.getvalue().decode('utf-8-sig'))
+    except Exception as e:
+        log.warning("Schedule JSON read failed: %s", e)
+        return await m.answer("Не удалось прочитать JSON. Проверь кодировку UTF-8 и синтаксис файла.")
+    if not isinstance(raw, dict) or raw.get('format_version') != 1 or not isinstance(raw.get('lessons'), list):
+        return await m.answer('Неподдерживаемый формат. Нужны поля "format_version": 1 и массив "lessons".')
+    if not raw['lessons'] or len(raw['lessons']) > 500:
+        return await m.answer("В файле должно быть от 1 до 500 занятий.")
+    cc = db()
+    disciplines = cc.execute("SELECT id,name FROM disciplines WHERE active=1").fetchall()
+    cc.close()
+    by_name = {re.sub(r'\s+', ' ', r['name']).strip().casefold(): (r['id'], r['name']) for r in disciplines}
+    parsed, errors, unresolved = [], [], set()
+    for i, x in enumerate(raw['lessons'], 1):
+        if not isinstance(x, dict):
+            errors.append(f"Строка {i}: занятие должно быть объектом JSON."); continue
+        try:
+            dt = date.fromisoformat(str(x.get('date', '')))
+            st = time.fromisoformat(str(x.get('start', '')))
+            en = time.fromisoformat(str(x.get('end', '')))
+            if en <= st: raise ValueError('время окончания должно быть позже начала')
+            if st.second or en.second: raise ValueError('используй время HH:MM без секунд')
+        except Exception as e:
+            errors.append(f"Строка {i}: дата/время некорректны ({e})."); continue
+        name = re.sub(r'\s+', ' ', str(x.get('discipline') or '')).strip()
+        if not name:
+            errors.append(f"Строка {i}: не указана discipline."); continue
+        key = name.casefold()
+        if key not in by_name:
+            unresolved.add(name); continue
+        typ = str(x.get('lesson_type') or '').strip().upper()
+        typ_map = {'ПР':'ПР','ПР.':'ПР','ПРАКТИКА':'ПР','ЛЕК':'ЛЕК','ЛЕК.':'ЛЕК','ЛЕКЦИЯ':'ЛЕК','ЛАБ':'ЛАБ','ЛАБ.':'ЛАБ','ЛАБОРАТОРНАЯ':'ЛАБ'}
+        if typ not in typ_map:
+            errors.append(f"Строка {i}: неизвестный lesson_type {typ!r}; допустимы ПР, ЛЕК, ЛАБ."); continue
+        room = x.get('room', '')
+        room = '' if room is None else str(room).strip()
+        parsed.append({'date':dt.isoformat(),'start':st.strftime('%H:%M'),'end':en.strftime('%H:%M'),
+                       'discipline_id':by_name[key][0],'discipline':by_name[key][1], 'lesson_type':typ_map[typ], 'room':room})
+    if unresolved:
+        names = '\n'.join('• ' + n for n in sorted(unresolved))
+        await m.answer("❗ Не нашёл такие дисциплины в активном списке бота:\n" + names + "\n\nИсправь названия в JSON на точные названия из бота и пришли файл ещё раз. Ничего не импортировано.")
+        return
+    if errors:
+        await m.answer("❗ В JSON есть ошибки, импорт не выполнен:\n" + '\n'.join(errors[:25]))
+        return
+    # Duplicate same-day/time entries are ambiguous; refuse rather than silently double-add.
+    seen = set(); duplicates = []
+    for x in parsed:
+        k = (x['date'], x['start'], x['end'], x['discipline_id'])
+        if k in seen: duplicates.append(f"{x['date']} {x['start']} {x['discipline']}")
+        seen.add(k)
+    if duplicates:
+        return await m.answer("❗ В JSON найдены возможные дубликаты:\n" + '\n'.join('• '+x for x in duplicates[:15]) + "\nУдали повторы и отправь файл заново.")
+    days = sorted({x['date'] for x in parsed})
+    warnings = raw.get('warnings') if isinstance(raw.get('warnings'), list) else []
+    await state.update_data(schedule_json_rows=parsed, schedule_json_days=days, schedule_json_group=str(raw.get('group') or ''), schedule_json_warnings=warnings)
+    await state.set_state(ScheduleJSONImport.file)
+    preview = []
+    for d in days:
+        rows = [x for x in parsed if x['date'] == d]
+        preview.append(f"\n<b>{d}</b> — {len(rows)} пар")
+        for x in sorted(rows, key=lambda z:z['start']):
+            preview.append(f"{x['start']}–{x['end']} · {x['lesson_type']} · {x['discipline']} · ауд. {x['room'] or '—'}")
+    wtxt = '\n\n⚠️ Замечания распознавания:\n' + '\n'.join('• '+str(w) for w in warnings[:10]) if warnings else ''
+    text = (f"📋 <b>Предпросмотр импорта</b>\nГруппа: {raw.get('group') or 'не указана'}\n"
+            f"Занятий: {len(parsed)} · дат: {len(days)}\n\n" + '\n'.join(preview) + wtxt +
+            "\n\n<b>Подтвердить?</b> Все занятия на перечисленные даты будут заменены данными из файла.")
+    await m.answer(text, reply_markup=ik([[b("✅ Заменить расписание на эти даты", "schedjson:confirm")], [b("❌ Отмена", "schedjson:cancel")]]))
+
+@router.callback_query(F.data == 'schedjson:cancel')
+async def schedule_json_cancel(c: CallbackQuery, state: FSMContext):
+    if not is_admin(c.from_user.id): return await c.answer("Доступ запрещён", show_alert=True)
+    await state.clear(); await c.answer("Импорт отменён")
+    await edit_or_answer(c, "Импорт отменён.", ik([[b("🔙 В админ-панель", "adm:back")]]))
+
+@router.callback_query(F.data == 'schedjson:confirm')
+async def schedule_json_confirm(c: CallbackQuery, state: FSMContext):
+    if not is_admin(c.from_user.id): return await c.answer("Доступ запрещён", show_alert=True)
+    data = await state.get_data()
+    rows, days = data.get('schedule_json_rows'), data.get('schedule_json_days')
+    if not rows or not days:
+        await state.clear(); return await c.answer("Данные импорта устарели. Пришли JSON заново.", show_alert=True)
+    cc = db(); now = datetime.now(TZ).isoformat()
+    try:
+        cc.execute('BEGIN IMMEDIATE')
+        for d in days:
+            existing = cc.execute("SELECT id FROM schedule_days WHERE day=?", (d,)).fetchone()
+            if existing:
+                cc.execute("DELETE FROM schedule_lessons WHERE schedule_day_id=?", (existing['id'],))
+                sid = existing['id']
+                cc.execute("UPDATE schedule_days SET updated_at=? WHERE id=?", (now, sid))
+            else:
+                cc.execute("INSERT INTO schedule_days(day,created_at,updated_at) VALUES(?,?,?)", (d, now, now))
+                sid = cc.execute("SELECT last_insert_rowid()").fetchone()[0]
+            day_rows = sorted((x for x in rows if x['date'] == d), key=lambda z:z['start'])
+            for lesson_no, x in enumerate(day_rows, 1):
+                cc.execute("INSERT INTO schedule_lessons(schedule_day_id,lesson_no,start,end,discipline_id,lesson_type,room) VALUES(?,?,?,?,?,?,?)",
+                           (sid, lesson_no, x['start'], x['end'], x['discipline_id'], x['lesson_type'], x['room']))
+        cc.commit()
+    except Exception as e:
+        cc.rollback(); log.exception("Schedule JSON import failed")
+        await c.answer("Ошибка записи. Расписание не изменено.", show_alert=True)
+        return
+    finally:
+        cc.close()
+    count, day_count = len(rows), len(days)
+    await state.clear(); await c.answer("Расписание импортировано")
+    await edit_or_answer(c, f"✅ <b>Импорт завершён</b>\nДобавлено занятий: {count}\nОбновлено дат: {day_count}.", ik([[b("📅 Управление расписанием", "adm:schedule")], [b("🔙 Админ-панель", "adm:back")]]))
 
 # Schedule admin
 async def admin_schedule(c):
