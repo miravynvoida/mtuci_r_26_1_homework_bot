@@ -1,10 +1,19 @@
 const tg = window.Telegram?.WebApp;
-function applyTelegramTheme(){
-  const scheme = tg?.colorScheme === 'light' ? 'light' : 'dark';
+// Независимая от Telegram тема: выбор хранится на устройстве.
+function applyAppTheme(){
+  let scheme='dark';
+  try { scheme=localStorage.getItem('homework-app-theme') || 'dark'; } catch(e) {}
   document.documentElement.setAttribute('data-theme', scheme);
   document.documentElement.classList.toggle('dark-theme', scheme === 'dark');
-  try { tg?.setHeaderColor?.(scheme === 'dark' ? '#000000' : '#f2f2f7'); tg?.setBackgroundColor?.(scheme === 'dark' ? '#000000' : '#f2f2f7'); } catch(e) {}
 }
+window.toggleAppTheme=()=>{
+  const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  document.documentElement.classList.toggle('dark-theme',next==='dark');
+  try { localStorage.setItem('homework-app-theme',next); } catch(e) {}
+  triggerHaptic('light');
+  renderSettings();
+};
 function triggerHaptic(type='light'){
   try {
     if (!tg?.HapticFeedback) return;
@@ -16,11 +25,11 @@ document.addEventListener('click', e => {
   if (e.target.closest('button')) triggerHaptic('light');
 });
 if (tg) {
-  tg.ready(); tg.expand(); applyTelegramTheme();
-  tg.onEvent?.('themeChanged', applyTelegramTheme);
-  try { tg.setHeaderColor(tg.themeParams?.bg_color || '#f6f7fb'); tg.setBackgroundColor(tg.themeParams?.bg_color || '#f6f7fb'); } catch(e){}
+  tg.ready(); tg.expand(); applyAppTheme();
+  try { tg.setHeaderColor(document.documentElement.dataset.theme === 'dark' ? '#000000' : '#f5f5f7'); tg.setBackgroundColor(document.documentElement.dataset.theme === 'dark' ? '#000000' : '#f5f5f7'); } catch(e){}
 }
 
+applyAppTheme();
 const pad=n=>String(n).padStart(2,'0');
 const localToday=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
 const urlParams=new URLSearchParams(window.location.search);
@@ -66,7 +75,7 @@ window.sendTextbook=async id=>{try{await api(`/api/textbooks/${id}/send`,{method
 async function renderMore(){title.textContent='Ещё';const m=state.me||await api('/api/me');state.me=m;const d=await api('/api/grades');content.innerHTML=`<div class="card"><h2>${esc(m.full_name)}</h2><div class="stats">${stat(m.stats.average??'—','средний')}${stat(m.stats.grade_count,'оценок')}${stat(m.stats.n_count,'Н')}${stat(m.stats.b_count,'Б')}${stat(m.stats.o_count,'О')}</div></div><div class="card"><h3>Разделы</h3><div class="toolbar"><button class="secondary" onclick="renderTextbooks()">📚 Учебники</button><button class="secondary" onclick="showEvents()">🔔 События</button><button class="secondary" onclick="go('settings')">⚙️ Настройки</button>${m.is_admin?'<button class="primary" onclick="go(\'admin\')">🛠 Админ-панель</button>':''}</div></div><div class="card"><h3>Средние по дисциплинам</h3>${d.items.map(x=>`<div class="avg-line"><span>${esc(x.emoji)} ${esc(x.name)}</span><b>${x.average??'—'}</b></div>`).join('')||'<p class="muted">Нет оценок.</p>'}</div>`}
 async function showEvents(){title.textContent='События';const d=await api('/api/events');content.innerHTML=`<div class="card"><button class="secondary" onclick="go('more')">← Назад</button>${d.items.map(eventHtml).join('')||'<p class="muted">Событий нет.</p>'}</div>`}
 
-async function renderSettings(){title.textContent=state.setup?'Первоначальная настройка':'Настройки';const s=state.settings||await api('/api/settings');state.settings=s;const opts=[5,10,15,30,45,60,90];content.innerHTML=`<div class="card ${state.setup?'hero':''}"><h2>${state.setup?'⚙️ Полная первоначальная настройка':'⚙️ Настройки'}</h2><p class="muted">Здесь сохраняются ваши персональные настройки бота. Их можно изменить в любой момент.</p></div><div class="card"><h3>🔔 Уведомления</h3><label class="check-all"><input id="setNext" type="checkbox" ${s.next_lesson?'checked':''}> Следующая пара</label><label class="check-all"><input id="setTomorrow" type="checkbox" ${s.tomorrow_schedule?'checked':''}> Расписание на завтра</label><label class="check-all"><input id="setDeadline" type="checkbox" ${s.deadline_reminders?'checked':''}> Напоминания о дедлайнах</label><label class="check-all"><input id="setHw" type="checkbox" ${s.new_homework?'checked':''}> Новое ДЗ</label><label class="check-all"><input id="setUpdates" type="checkbox" ${s.updates?'checked':''}> Обновления</label><label class="check-all"><input id="setOther" type="checkbox" ${s.other?'checked':''}> Прочие уведомления</label><label class="check-all"><input id="setSilent" type="checkbox" ${s.silent_notifications?'checked':''}> 🔕 Тихие уведомления</label><div class="field"><label>Напоминать о следующей паре за</label><select id="setMinutes">${opts.map(x=>`<option value="${x}" ${Number(s.next_lesson_minutes)===x?'selected':''}>${x} мин.</option>`).join('')}</select></div><p class="muted">Важные системные сообщения отключить нельзя.</p><button class="primary" style="width:100%" onclick="saveSettings()">${state.setup?'✅ Сохранить и завершить настройку':'💾 Сохранить'}</button></div>`}
+async function renderSettings(){title.textContent=state.setup?'Первоначальная настройка':'Настройки';const s=state.settings||await api('/api/settings');state.settings=s;const opts=[5,10,15,30,45,60,90];content.innerHTML=`<div class="card ${state.setup?'hero':''}"><h2>${state.setup?'⚙️ Полная первоначальная настройка':'⚙️ Настройки'}</h2><p class="muted">Настройки оформления приложения не зависят от темы Telegram.</p></div><div class="card"><h3>🎨 Оформление</h3><p class="muted">Текущая тема: ${document.documentElement.dataset.theme==='dark'?'глубокая чёрная':'светлая'}</p><button class="secondary" style="width:100%" onclick="toggleAppTheme()">${document.documentElement.dataset.theme==='dark'?'☀️ Включить светлую тему':'🌑 Включить чёрную тему'}</button></div><div class="card"><h3>🔔 Уведомления</h3><label class="check-all"><input id="setNext" type="checkbox" ${s.next_lesson?'checked':''}> Следующая пара</label><label class="check-all"><input id="setTomorrow" type="checkbox" ${s.tomorrow_schedule?'checked':''}> Расписание на завтра</label><label class="check-all"><input id="setDeadline" type="checkbox" ${s.deadline_reminders?'checked':''}> Напоминания о дедлайнах</label><label class="check-all"><input id="setHw" type="checkbox" ${s.new_homework?'checked':''}> Новое ДЗ</label><label class="check-all"><input id="setUpdates" type="checkbox" ${s.updates?'checked':''}> Обновления</label><label class="check-all"><input id="setOther" type="checkbox" ${s.other?'checked':''}> Прочие уведомления</label><label class="check-all"><input id="setSilent" type="checkbox" ${s.silent_notifications?'checked':''}> 🔕 Тихие уведомления</label><div class="field"><label>Напоминать о следующей паре за</label><select id="setMinutes">${opts.map(x=>`<option value="${x}" ${Number(s.next_lesson_minutes)===x?'selected':''}>${x} мин.</option>`).join('')}</select></div><p class="muted">Важные системные сообщения отключить нельзя.</p><button class="primary" style="width:100%" onclick="saveSettings()">${state.setup?'✅ Сохранить и завершить настройку':'💾 Сохранить'}</button></div>`}
 window.saveSettings=async()=>{try{const payload={tomorrow_schedule:document.getElementById('setTomorrow').checked,next_lesson:document.getElementById('setNext').checked,updates:document.getElementById('setUpdates').checked,other:document.getElementById('setOther').checked,deadline_reminders:document.getElementById('setDeadline').checked,next_lesson_minutes:Number(document.getElementById('setMinutes').value),new_homework:document.getElementById('setHw').checked,setup_done:true,setup_version:1,silent_notifications:document.getElementById('setSilent').checked};await api('/api/settings',{method:'PATCH',body:JSON.stringify(payload)});state.setup=false;state.settings=await api('/api/settings');state.me=await api('/api/me');toastMsg('Настройки сохранены');go('more')}catch(e){toastMsg(e.message)}}
 
 async function renderAdmin(){
