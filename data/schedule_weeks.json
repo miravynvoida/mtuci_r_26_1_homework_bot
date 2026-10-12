@@ -1,0 +1,345 @@
+{
+  "format_version": 1,
+  "group": "Р 26-1",
+  "weeks": [
+    {
+      "week_number": 8,
+      "start_date": "2026-10-19",
+      "end_date": "2026-10-25",
+      "lessons": [
+        {
+          "date": "2026-10-19",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Математика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-19",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Математика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-19",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "География",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-20",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "ОБЖиЗР",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-20",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Русский язык",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-20",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Родной язык",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-21",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "ОПД",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-21",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Физика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-21",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Физика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-22",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Математика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-22",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "История",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-22",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Ин. язык",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-23",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Обществознание",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-23",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Физ. культура",
+          "lesson_type": "ПР",
+          "room": "С/зал",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-23",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Математика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-24",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Информатика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-24",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Информатика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-24",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Химия",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 3
+        }
+      ]
+    },
+    {
+      "week_number": 9,
+      "start_date": "2026-10-26",
+      "end_date": "2026-11-01",
+      "lessons": [
+        {
+          "date": "2026-10-26",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Русский язык",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-26",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Литература",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-26",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "История",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-27",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "ОБЖиЗР",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-27",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Математика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-27",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Математика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-28",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Физика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-28",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Обществознание",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-28",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Физ. культура",
+          "lesson_type": "ПР",
+          "room": "С/зал",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-29",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Математика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-29",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "География",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-29",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Ин. язык",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-30",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Физика",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-30",
+          "start": "13:50",
+          "end": "15:20",
+          "discipline": "Физика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-30",
+          "start": "15:30",
+          "end": "17:00",
+          "discipline": "Химия",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 3
+        },
+        {
+          "date": "2026-10-31",
+          "start": "08:30",
+          "end": "10:00",
+          "discipline": "Информатика",
+          "lesson_type": "ПР",
+          "room": "417",
+          "lesson_no": 1
+        },
+        {
+          "date": "2026-10-31",
+          "start": "10:10",
+          "end": "11:40",
+          "discipline": "Информатика",
+          "lesson_type": "ЛАБ",
+          "room": "417",
+          "lesson_no": 2
+        },
+        {
+          "date": "2026-10-31",
+          "start": "11:50",
+          "end": "13:20",
+          "discipline": "Биология",
+          "lesson_type": "ЛЕК",
+          "room": "415",
+          "lesson_no": 3
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}

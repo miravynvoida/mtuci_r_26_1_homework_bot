@@ -463,6 +463,21 @@ def home(x_telegram_init_data: str | None = Header(default=None)):
            JOIN schedule_days sd ON sd.id=l.schedule_day_id JOIN disciplines d ON d.id=l.discipline_id
            WHERE sd.day=? ORDER BY l.start""", (today,)
     ).fetchall()
+    # Official imported weekly JSON takes precedence for dates it contains.
+    schedule_path = BASE_DIR / "data" / "schedule_weeks.json"
+    if schedule_path.exists():
+        try:
+            payload = json.loads(schedule_path.read_text(encoding="utf-8"))
+            official = [dict(item) for week in payload.get("weeks", []) for item in week.get("lessons", []) if item.get("date") == today]
+            if official:
+                lessons = official
+                for lesson in lessons:
+                    row = c.execute("SELECT id, emoji FROM disciplines WHERE name=?", (lesson.get("discipline"),)).fetchone()
+                    lesson["discipline_id"] = row["id"] if row else None
+                    lesson["emoji"] = row["emoji"] if row else "📚"
+                lessons.sort(key=lambda item: (item.get("start", ""), item.get("lesson_no", 99)))
+        except (OSError, ValueError, TypeError):
+            pass
     hw = c.execute(
         """SELECT h.id,h.discipline_id,h.text,h.explanation,h.published_date,h.due_date,
                   d.name discipline,d.emoji,COALESCE(e.title,substr(h.text,1,80)) title
@@ -490,11 +505,39 @@ def home(x_telegram_init_data: str | None = Header(default=None)):
     }
 
 
+def academic_week_number(day_value: str) -> int:
+    """Week 1 is the short opening week beginning 2026-09-02; week 2 starts 2026-09-07."""
+    d = date.fromisoformat(day_value)
+    first_week_start = date(2026, 9, 2)
+    second_week_start = date(2026, 9, 7)
+    if d < first_week_start:
+        return 1
+    if d < second_week_start:
+        return 1
+    return 2 + ((d - second_week_start).days // 7)
+
+
 @app.get("/api/schedule")
 def schedule(day: str = Query(...), x_telegram_init_data: str | None = Header(default=None)):
     _, student, _, _ = current_user(x_telegram_init_data)
-    _ = student
     day = parse_date(day)
+    schedule_path = BASE_DIR / "data" / "schedule_weeks.json"
+    if schedule_path.exists():
+        try:
+            payload = json.loads(schedule_path.read_text(encoding="utf-8"))
+            for week in payload.get("weeks", []):
+                lessons = [dict(item) for item in week.get("lessons", []) if item.get("date") == day]
+                if lessons:
+                    c = db()
+                    for lesson in lessons:
+                        row = c.execute("SELECT emoji FROM disciplines WHERE name=?", (lesson.get("discipline"),)).fetchone()
+                        lesson["emoji"] = row["emoji"] if row else "📚"
+                        lesson.setdefault("id", None)
+                    c.close()
+                    lessons.sort(key=lambda x: (x.get("lesson_no", 99), x.get("start", "")))
+                    return {"date": day, "week_number": week.get("week_number", academic_week_number(day)), "lessons": lessons}
+        except (OSError, ValueError, TypeError):
+            pass
     c = db()
     rows = c.execute(
         """SELECT l.*,d.name discipline,d.emoji FROM schedule_lessons l
@@ -502,8 +545,7 @@ def schedule(day: str = Query(...), x_telegram_init_data: str | None = Header(de
            WHERE sd.day=? ORDER BY l.lesson_no,l.start""", (day,)
     ).fetchall()
     c.close()
-    return {"date": day, "lessons": [dict(x) for x in rows]}
-
+    return {"date": day, "week_number": academic_week_number(day), "lessons": [dict(x) for x in rows]}
 
 @app.get("/api/homework")
 def homework(x_telegram_init_data: str | None = Header(default=None)):
