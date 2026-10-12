@@ -1664,7 +1664,7 @@ async def cleanup_old_data(now):
         cc=None
         try:
             cc=db()
-            cc.execute("DELETE FROM schedule_days WHERE day < ?",(today,))
+            # Historical schedule is intentionally retained; do not delete past dates.
             cc.execute("""
                 UPDATE homework
                 SET archived=1

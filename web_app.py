@@ -655,11 +655,26 @@ def grade_discipline(discipline_id: int, x_telegram_init_data: str | None = Head
         "SELECT id,grade_date,value,created_by,created_at FROM grade_marks WHERE student_id=? AND discipline_id=? ORDER BY grade_date DESC,id DESC",
         (student["id"], discipline_id),
     ).fetchall()
-    c.close()
     if not discipline:
+        c.close()
         raise HTTPException(404, "Дисциплина не найдена.")
-    items=[{**dict(x), "value": grade_label(x), "kind": "grade"} for x in rows]
-    items += [{**dict(x), "grade_value":None, "attendance_type":None, "comment":"", "value":x["value"], "kind":"plus"} for x in plus_rows]
+    lesson_type_map = {}
+    try:
+        type_rows = c.execute(
+            "SELECT grade_date, lesson_type FROM grade_lesson_types WHERE discipline_id=?",
+            (discipline_id,),
+        ).fetchall()
+        lesson_type_map = {r["grade_date"]: r["lesson_type"] for r in type_rows}
+    except Exception:
+        # Existing deployments may not have synced the new metadata yet.
+        lesson_type_map = {}
+    c.close()
+    items=[{**dict(x), "value": grade_label(x), "kind": "grade",
+             "lesson_type": lesson_type_map.get(x["grade_date"]),
+             "lesson_type_label": {"ПР":"Практика","ЛАБ":"Лабораторная","ЛЕК":"Лекция"}.get(lesson_type_map.get(x["grade_date"]), "Занятие")} for x in rows]
+    items += [{**dict(x), "grade_value":None, "attendance_type":None, "comment":"", "value":x["value"], "kind":"plus",
+               "lesson_type": lesson_type_map.get(x["grade_date"]),
+               "lesson_type_label": {"ПР":"Практика","ЛАБ":"Лабораторная","ЛЕК":"Лекция"}.get(lesson_type_map.get(x["grade_date"]), "Занятие")} for x in plus_rows]
     items.sort(key=lambda x:(x['grade_date'],x['id']), reverse=True)
     return {"discipline": dict(discipline), "items": items}
 

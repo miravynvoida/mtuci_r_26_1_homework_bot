@@ -117,6 +117,7 @@ def sync_google_grades() -> dict[str, Any]:
         disciplines = {norm(r["name"]): r for r in c.execute("SELECT id,name,emoji FROM disciplines WHERE active=1").fetchall()}
 
         imported: list[tuple[int, int, str, str, int]] = []
+        lesson_types: dict[tuple[int, str], str] = {}
         unmatched_students: set[str] = set()
         unknown_tabs: set[str] = set()
 
@@ -137,7 +138,21 @@ def sync_google_grades() -> dict[str, Any]:
                     date_columns.append((idx, d))
             if not date_columns:
                 continue
-            for row in values[1:]:
+
+            # Spreadsheet row 27 contains lesson types under each date column:
+            # ПР = practice, ЛАБ = laboratory, ЛЕК = lecture.
+            # gspread values are zero-based, so row 27 is values[26].
+            if len(values) >= 27:
+                type_row = values[26]
+                for idx, grade_date in date_columns:
+                    raw_type = (type_row[idx] if idx < len(type_row) else "").strip().upper().replace("Ё", "Е")
+                    if raw_type in {"ПР", "ЛАБ", "ЛЕК"}:
+                        lesson_types[(discipline["id"], grade_date)] = raw_type
+
+            for row_index, row in enumerate(values[1:], start=1):
+                # Never treat the lesson-type row as a student row.
+                if row_index == 26:
+                    continue
                 if len(row) < 2:
                     continue
                 student_name = row[1].strip()
@@ -155,6 +170,16 @@ def sync_google_grades() -> dict[str, Any]:
 
         # The cache is rebuilt atomically. This guarantees that deleted/cleared cells in
         # Google Sheets disappear from the student Mini App on the next sync.
+        c.execute("""CREATE TABLE IF NOT EXISTS grade_lesson_types (
+            discipline_id INTEGER NOT NULL,
+            grade_date TEXT NOT NULL,
+            lesson_type TEXT NOT NULL,
+            PRIMARY KEY (discipline_id, grade_date)
+        )""")
+        c.execute("DELETE FROM grade_lesson_types")
+        for (did, grade_date), lesson_type in lesson_types.items():
+            c.execute("INSERT INTO grade_lesson_types(discipline_id,grade_date,lesson_type) VALUES(?,?,?)",
+                      (did, grade_date, lesson_type))
         c.execute("DELETE FROM grade_history")
         c.execute("DELETE FROM event_feed WHERE event_type LIKE 'grade_%'")
         c.execute("DELETE FROM grade_marks")

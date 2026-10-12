@@ -41,3 +41,14 @@
  .lesson-tile{padding:12px 10px}
  .bottom-nav button span:last-child{font-size:9px}
 }
+
+/* Grade history: date and lesson type on the left, mark on the right. */
+.discipline .name{min-width:0;overflow-wrap:anywhere;line-height:1.25}
+.discipline .discipline-average{flex:0 0 auto;min-width:32px;text-align:right;font-size:16px;font-weight:800}
+.discipline .expand-arrow{flex:0 0 22px}
+.inline-grade-row{display:grid;grid-template-columns:minmax(0,1fr) 36px;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid color-mix(in srgb,var(--line) 65%,transparent);font-size:12px}
+.inline-grade-label{min-width:0;overflow-wrap:anywhere;line-height:1.4;color:var(--muted)}
+.inline-grade-label b{font-weight:800;color:var(--text)}
+.inline-grade-row .grade-badge{justify-self:end;min-width:30px;height:30px}
+.textbooks-home-link{margin-top:10px}
+@media(max-width:380px){.discipline{gap:8px;padding:11px}.discipline .emoji{font-size:22px}.inline-grade-row{font-size:11px}}
