@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import hmac
 import json
@@ -118,14 +117,6 @@ def migrate_web_tables():
         );
         CREATE INDEX IF NOT EXISTS idx_grade_marks_student_discipline_date
             ON grade_marks(student_id, discipline_id, grade_date);
-        CREATE TABLE IF NOT EXISTS homework_completion (
-            telegram_id INTEGER NOT NULL,
-            homework_id INTEGER NOT NULL,
-            completed INTEGER NOT NULL DEFAULT 0,
-            updated_at TEXT NOT NULL,
-            PRIMARY KEY(telegram_id, homework_id),
-            FOREIGN KEY(homework_id) REFERENCES homework(id) ON DELETE CASCADE
-        );
         CREATE TABLE IF NOT EXISTS app_migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS google_sync_state (id INTEGER PRIMARY KEY CHECK(id=1), last_sync_at TEXT, last_status TEXT, last_error TEXT, updated_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS homework_upload_requests (telegram_id INTEGER PRIMARY KEY, homework_id INTEGER NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'waiting', FOREIGN KEY(homework_id) REFERENCES homework(id) ON DELETE CASCADE);
@@ -474,13 +465,11 @@ def home(x_telegram_init_data: str | None = Header(default=None)):
     ).fetchall()
     hw = c.execute(
         """SELECT h.id,h.discipline_id,h.text,h.explanation,h.published_date,h.due_date,
-                  d.name discipline,d.emoji,COALESCE(e.title,substr(h.text,1,80)) title,
-                  COALESCE(hc.completed,0) completed
+                  d.name discipline,d.emoji,COALESCE(e.title,substr(h.text,1,80)) title
            FROM homework h JOIN disciplines d ON d.id=h.discipline_id
            LEFT JOIN homework_extra e ON e.homework_id=h.id
-           LEFT JOIN homework_completion hc ON hc.homework_id=h.id AND hc.telegram_id=?
-           WHERE h.hidden=0 AND h.archived=0 ORDER BY COALESCE(hc.completed,0), d.name, h.due_date"""
-    , (uid,)).fetchall()
+           WHERE h.hidden=0 AND h.archived=0 ORDER BY d.name, h.due_date"""
+    ).fetchall()
     events = c.execute(
         """SELECT e.*, d.name discipline, d.emoji FROM event_feed e
            LEFT JOIN disciplines d ON d.id=e.discipline_id
@@ -518,17 +507,14 @@ def schedule(day: str = Query(...), x_telegram_init_data: str | None = Header(de
 
 @app.get("/api/homework")
 def homework(x_telegram_init_data: str | None = Header(default=None)):
-    uid, student, _, _ = current_user(x_telegram_init_data)
-    archive_due_homework()
+    _, student, _, _ = current_user(x_telegram_init_data)
     c = db()
     rows = c.execute(
-        """SELECT h.*,d.name discipline,d.emoji,COALESCE(e.title,substr(h.text,1,80)) title,
-                  COALESCE(hc.completed,0) completed
+        """SELECT h.*,d.name discipline,d.emoji,COALESCE(e.title,substr(h.text,1,80)) title
            FROM homework h JOIN disciplines d ON d.id=h.discipline_id
            LEFT JOIN homework_extra e ON e.homework_id=h.id
-           LEFT JOIN homework_completion hc ON hc.homework_id=h.id AND hc.telegram_id=?
-           WHERE h.hidden=0 AND h.archived=0 ORDER BY COALESCE(hc.completed,0), d.name, h.due_date, h.id DESC"""
-    , (uid,)).fetchall()
+           WHERE h.hidden=0 AND h.archived=0 ORDER BY d.name, h.due_date, h.id DESC"""
+    ).fetchall()
     materials = c.execute("SELECT * FROM additional_materials ORDER BY id DESC").fetchall()
     hw_media = c.execute("SELECT * FROM homework_media ORDER BY id").fetchall()
     c.close()
@@ -546,82 +532,6 @@ def homework(x_telegram_init_data: str | None = Header(default=None)):
             for x in rows
         ],
     }
-
-
-class HomeworkCompletionIn(BaseModel):
-    completed: bool
-
-
-@app.post("/api/homework/{homework_id}/completion")
-def update_homework_completion(homework_id: int, payload: HomeworkCompletionIn, x_telegram_init_data: str | None = Header(default=None)):
-    uid, student, _, _ = current_user(x_telegram_init_data)
-    c = db()
-    exists = c.execute("SELECT id FROM homework WHERE id=? AND hidden=0 AND archived=0", (homework_id,)).fetchone()
-    if not exists:
-        c.close()
-        raise HTTPException(404, "Домашнее задание не найдено.")
-    if payload.completed:
-        c.execute("""INSERT INTO homework_completion(telegram_id,homework_id,completed,updated_at)
-                     VALUES(?,?,1,?) ON CONFLICT(telegram_id,homework_id)
-                     DO UPDATE SET completed=1,updated_at=excluded.updated_at""",
-                  (uid, homework_id, datetime.now(TIMEZONE).isoformat(timespec="seconds")))
-    else:
-        c.execute("DELETE FROM homework_completion WHERE telegram_id=? AND homework_id=?", (uid, homework_id))
-    c.commit()
-    c.close()
-    return {"ok": True, "completed": payload.completed}
-
-
-def archive_due_homework():
-    """Archive homework at/after 19:00 on its due date in configured timezone."""
-    now = datetime.now(TIMEZONE)
-    if (now.hour, now.minute) < (19, 0):
-        return 0
-    c = db()
-    rows = c.execute("SELECT id,due_date FROM homework WHERE hidden=0 AND archived=0").fetchall()
-    due_ids = []
-    for row in rows:
-        raw = (row["due_date"] or "").strip()
-        due = None
-        for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
-            try:
-                due = datetime.strptime(raw, fmt).date()
-                break
-            except ValueError:
-                continue
-        if due and due <= now.date():
-            due_ids.append(row["id"])
-    if due_ids:
-        c.executemany("UPDATE homework SET archived=1 WHERE id=?", [(hid,) for hid in due_ids])
-        c.commit()
-    c.close()
-    return len(due_ids)
-
-
-async def homework_archive_worker():
-    while True:
-        try:
-            archive_due_homework()
-        except Exception:
-            import logging
-            logging.exception("Ошибка автоматической архивации ДЗ")
-        await asyncio.sleep(30)
-
-
-@app.on_event("startup")
-async def start_homework_archive_worker():
-    app.state.homework_archive_task = asyncio.create_task(homework_archive_worker())
-
-
-@app.on_event("shutdown")
-async def stop_homework_archive_worker():
-    task = getattr(app.state, "homework_archive_task", None)
-    if task:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
 
 
 @app.post("/api/homework/{homework_id}/media/{media_id}")

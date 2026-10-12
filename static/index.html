@@ -6,25 +6,24 @@
   <meta name="theme-color" content="#000000">
   <title>Электронный дневник v20</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/static/app.css?v=23">
+  <link rel="stylesheet" href="/static/app.css?v=30">
 </head>
 <body>
 <div id="app">
   <header class="topbar">
-    <div><div class="eyebrow">Электронный дневник</div><h1 id="pageTitle">Главная</h1></div>
+    <div><div class="eyebrow">СТУДЕНЧЕСКИЙ ДНЕВНИК</div><h1 id="pageTitle">Главная</h1></div>
     <button id="refreshBtn" class="icon-btn" aria-label="Обновить">↻</button>
   </header>
   <main id="content"></main>
   <nav id="bottomNav" class="bottom-nav">
-    <button data-page="home"><span class="nav-emoji" aria-hidden="true">🏠</span><span>Главная</span></button>
-    <button data-page="schedule"><span class="nav-emoji" aria-hidden="true">🗓️</span><span>Расписание</span></button>
-    <button data-page="homework"><span class="nav-emoji" aria-hidden="true">📝</span><span>ДЗ</span></button>
-    <button data-page="grades"><span class="nav-emoji" aria-hidden="true">📊</span><span>Оценки</span></button>
-    <button data-page="more"><span class="nav-emoji" aria-hidden="true">⚙️</span><span>Ещё</span></button>
-    <button id="adminNavBtn" data-page="admin" hidden><span class="nav-emoji" aria-hidden="true">🛠️</span><span>Админ</span></button>
+    <button data-page="home" class="active"><span class="nav-emoji">⌂</span><span>Главная</span></button>
+    <button data-page="schedule"><span class="nav-emoji">▦</span><span>Расписание</span></button>
+    <button data-page="grades"><span class="nav-emoji">▥</span><span>Оценки</span></button>
+    <button data-page="more"><span class="nav-emoji">◉</span><span>Личный кабинет</span></button>
+    <button id="adminNavBtn" data-page="admin" hidden><span class="nav-emoji">⚙</span><span>Админ</span></button>
   </nav>
 </div>
 <div id="toast"></div><div id="modalRoot"></div>
-<script src="/static/app.js?v=23"></script>
+<script src="/static/app.js?v=30"></script>
 </body>
 </html>
