@@ -1,8 +1,20 @@
 const tg = window.Telegram?.WebApp;
 function applyTelegramTheme(){
-  const dark=tg?.colorScheme==='dark';
-  document.documentElement.classList.toggle('dark-theme',dark);
+  const scheme = tg?.colorScheme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', scheme);
+  document.documentElement.classList.toggle('dark-theme', scheme === 'dark');
+  try { tg?.setHeaderColor?.(scheme === 'dark' ? '#000000' : '#f2f2f7'); tg?.setBackgroundColor?.(scheme === 'dark' ? '#000000' : '#f2f2f7'); } catch(e) {}
 }
+function triggerHaptic(type='light'){
+  try {
+    if (!tg?.HapticFeedback) return;
+    if (['success','error','warning'].includes(type)) tg.HapticFeedback.notificationOccurred(type);
+    else tg.HapticFeedback.impactOccurred(type);
+  } catch(e) {}
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('button')) triggerHaptic('light');
+});
 if (tg) {
   tg.ready(); tg.expand(); applyTelegramTheme();
   tg.onEvent?.('themeChanged', applyTelegramTheme);
@@ -26,7 +38,8 @@ function dayName(s){const d=parseLocalDate(s);return d?d.toLocaleDateString('ru-
 function gradeClass(v){return ['1','2','3','4','5'].includes(String(v))?`grade-${v}`:(v==='Н'?'grade-n':v==='Б'?'grade-b':v==='О'?'grade-o':v==='+'?'grade-plus':'')}
 function gradeBadge(v){return v?`<span class="grade-badge ${gradeClass(v)}">${esc(v)}</span>`:'<span class="grade-empty">—</span>'}
 function lessonHtml(x){return `<div class="lesson"><div><div class="time">${esc(x.start)}</div><div class="muted">${esc(x.end)}</div></div><div><b>${esc(x.emoji||'📚')} ${esc(x.discipline)}</b><div class="muted">${x.lesson_no} пара · ${esc(x.lesson_type||'')} · ${esc(x.room||'')}</div></div></div>`}
-function hwHtml(x){return `<button class="hw hw-btn" onclick="openHomework(${x.id})"><div class="title">${esc(x.title||'Задание')}</div><div class="muted">${esc(x.emoji)} ${esc(x.discipline)}${x.due_date?' · до '+esc(fullDate(x.due_date)):''}</div><div class="muted hw-preview">${esc((x.text||'').slice(0,130))}</div></button>`}
+function hwHtml(x){const done=!!x.completed;return `<div class="hw-row"><button class="hw hw-check ${done?'completed':''}" aria-label="${done?'Отметить невыполненным':'Отметить выполненным'}" aria-pressed="${done}" onclick="toggleHomework(${x.id},${!done},this)">${done?'✓':'○'}</button><button class="hw hw-btn ${done?'completed':''}" onclick="openHomework(${x.id})"><div class="title">${esc(x.title||'Задание')}</div><div class="muted">${esc(x.emoji)} ${esc(x.discipline)}${x.due_date?' · до '+esc(fullDate(x.due_date)):''}</div><div class="muted hw-preview">${esc((x.text||'').slice(0,130))}</div></button></div>`}
+window.toggleHomework=async(id,completed,button)=>{const row=button.closest('.hw-row');try{await api(`/api/homework/${id}/completion`,{method:'POST',body:JSON.stringify({completed})});triggerHaptic('success');await render();}catch(e){triggerHaptic('error');toastMsg(e.message||'Не удалось сохранить статус');}}
 function eventHtml(x){return `<div class="event"><b>${esc(x.title)}</b><div class="muted">${esc(x.description||'')}</div><div class="muted">${esc(x.created_at||'')}</div></div>`}
 function loading(){content.innerHTML='<div class="loading">Загрузка…</div>'}
 function setNav(){document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===state.page));const ab=document.getElementById('adminNavBtn');if(ab){ab.hidden=!state.admin;document.getElementById('bottomNav')?.classList.toggle('admin-mode',state.admin)}}
